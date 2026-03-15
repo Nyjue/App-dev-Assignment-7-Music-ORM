@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const { sequelize, Track } = require('./database/setup.js');
 require('dotenv').config();
@@ -8,30 +7,40 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Test database connection
-sequelize.authenticate()
-  .then(() => console.log('✅ Database connected'))
-  .catch(err => console.error('❌ Database connection error:', err));
 
-// ========== API ENDPOINTS ==========
 // GET all tracks
 app.get('/api/tracks', async (req, res) => {
   try {
     const tracks = await Track.findAll();
-    res.json({ success: true, count: tracks.length, data: tracks });
+    res.json({ 
+      success: true, 
+      count: tracks.length, 
+      data: tracks 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch tracks' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
-// GET single track - NOTE THE :id FORMAT
+// GET one track - NOTE: '/api/tracks/:id' (colon RIGHT NEXT TO id, NO SPACES)
 app.get('/api/tracks/:id', async (req, res) => {
   try {
     const track = await Track.findByPk(req.params.id);
-    if (!track) return res.status(404).json({ success: false, error: 'Track not found' });
+    if (!track) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Track not found' 
+      });
+    }
     res.json({ success: true, data: track });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch track' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
@@ -40,61 +49,80 @@ app.post('/api/tracks', async (req, res) => {
   try {
     const { songTitle, artistName, albumName, genre, duration, releaseYear } = req.body;
     
-    // Validation
-    const missingFields = [];
-    if (!songTitle) missingFields.push('songTitle');
-    if (!artistName) missingFields.push('artistName');
-    if (!albumName) missingFields.push('albumName');
-    if (!genre) missingFields.push('genre');
-    if (!duration) missingFields.push('duration');
-    if (!releaseYear) missingFields.push('releaseYear');
-    
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Missing required fields: ${missingFields.join(', ')}`
+    // Check required fields
+    if (!songTitle || !artistName || !albumName || !genre || !duration || !releaseYear) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'All fields are required' 
       });
     }
     
     const newTrack = await Track.create(req.body);
     res.status(201).json({ success: true, data: newTrack });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to create track' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
-// PUT update track - NOTE THE :id FORMAT
+// PUT update track - NOTE: SAME FORMAT '/api/tracks/:id'
 app.put('/api/tracks/:id', async (req, res) => {
   try {
     const track = await Track.findByPk(req.params.id);
-    if (!track) return res.status(404).json({ success: false, error: 'Track not found' });
+    if (!track) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Track not found' 
+      });
+    }
     
     await track.update(req.body);
     res.json({ success: true, data: track });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to update track' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
-// DELETE track - NOTE THE :id FORMAT
+// DELETE track - NOTE: SAME FORMAT '/api/tracks/:id'
 app.delete('/api/tracks/:id', async (req, res) => {
   try {
     const track = await Track.findByPk(req.params.id);
-    if (!track) return res.status(404).json({ success: false, error: 'Track not found' });
+    if (!track) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Track not found' 
+      });
+    }
     
     await track.destroy();
-    res.json({ success: true, message: 'Track deleted successfully' });
+    res.json({ 
+      success: true, 
+      message: 'Track deleted successfully' 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to delete track' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ success: false, error: 'Route not found' });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+// Start server with database connection
+sequelize.sync().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log('📚 Available endpoints:');
+    console.log('   GET    /api/tracks');
+    console.log('   GET    /api/tracks/:id');
+    console.log('   POST   /api/tracks');
+    console.log('   PUT    /api/tracks/:id');
+    console.log('   DELETE /api/tracks/:id');
+  });
+}).catch(err => {
+  console.error('❌ Database sync failed:', err);
 });
